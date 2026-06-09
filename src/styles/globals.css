@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #F3EEE4;
+  --color-surface: #FAF7F0;
+  --color-ink: #1E1C18;
+  --color-coral: #DE5A44;
+  --color-green: #3B9E78;
+
+  --font-family-recursive: "Recursive", monospace;
+  --font-family-fraunces: "Fraunces", serif;
+  --font-family-anybody: "Anybody", sans-serif;
+}
+
+html {
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
