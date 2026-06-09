@@ -1,6 +1,28 @@
 import { Header } from './Header'
 import { PaneDivider } from './PaneDivider'
+import { IframeRenderer } from '../preview/IframeRenderer'
 import { useUIStore } from '../../stores/ui'
+
+const DEMO_FILES: Record<string, string> = {
+  '/App.tsx': `
+export default function App() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 flex items-center justify-center p-8">
+      <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full">
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">Preview Engine</h1>
+        <p className="text-gray-500 text-sm mb-6">esbuild-wasm · Tailwind CDN · esm.sh</p>
+        <div className="flex flex-wrap gap-2 mb-6">
+          <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium">React 19</span>
+          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">JSX</span>
+          <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">Tailwind</span>
+        </div>
+        <p className="text-xs text-gray-400">Compiled in-browser. No server required.</p>
+      </div>
+    </div>
+  )
+}
+`,
+}
 
 export function Shell() {
   const activePane = useUIStore((s) => s.activePane)
@@ -36,33 +58,11 @@ export function Shell() {
         <PaneDivider />
 
         <div
-          className={`flex-1 overflow-y-auto bg-surface ${
+          className={`flex-1 overflow-hidden bg-surface ${
             activePane === 'preview' ? '' : 'hidden md:block'
           }`}
         >
-          <div className="p-12 md:p-14 lg:p-16 max-w-[620px]">
-            <div
-              className="font-fraunces font-black leading-[0.88] tracking-[-0.04em] text-[clamp(48px,9vw,88px)] mb-1"
-              style={{ fontVariationSettings: '"WONK" 1, "SOFT" 0, "opsz" 144' }}
-            >
-              not a<br />
-              <span className="text-coral">terminal.</span>
-            </div>
-            <div
-              className="font-fraunces italic text-[15px] text-ink4 mb-11 tracking-[0.01em]"
-              style={{ fontVariationSettings: '"WONK" 1, "SOFT" 100, "opsz" 24', fontWeight: 200 }}
-            >
-              definitely not a terminal.
-            </div>
-            <div
-              className="font-fraunces text-[clamp(22px,3.5vw,30px)] leading-[1.35] text-ink2 mb-3.5"
-              style={{ fontVariationSettings: '"WONK" 1, "SOFT" 30, "opsz" 48', fontWeight: 400 }}
-            >
-              <strong className="font-extrabold text-ink">Describe your idea.</strong>
-              <br />
-              See it come to life.
-            </div>
-          </div>
+          <IframeRenderer files={DEMO_FILES} />
         </div>
       </div>
     </div>
