@@ -3,6 +3,8 @@ import { PaneDivider } from './PaneDivider'
 import { ChatPane } from '../chat/ChatPane'
 import { LandingContent } from '../preview/LandingContent'
 import { BuildingState } from '../preview/BuildingState'
+import { TemplateGallery } from '../gallery/TemplateGallery'
+import { TemplatePreview } from '../preview/TemplatePreview'
 import { useUIStore } from '../../stores/ui'
 
 export function Shell() {
@@ -29,13 +31,18 @@ export function Shell() {
             activePane === 'preview' ? '' : 'hidden md:flex'
           }`}
         >
-          {previewMode === 'landing' ? (
+          {previewMode === 'landing' && (
             <div className="flex-1 overflow-y-auto">
               <LandingContent />
             </div>
-          ) : (
-            <BuildingState key={buildId} />
           )}
+          {previewMode === 'building' && <BuildingState key={buildId} />}
+          {previewMode === 'gallery' && (
+            <div className="flex-1 overflow-y-auto">
+              <TemplateGallery />
+            </div>
+          )}
+          {previewMode === 'preview' && <TemplatePreview />}
         </div>
       </div>
     </div>

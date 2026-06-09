@@ -1,3 +1,5 @@
+import { useUIStore } from '../../stores/ui'
+
 const FACTS = [
   { label: 'Build', value: 'Unlimited. Free. No token limits.', tag: 'free', tagClass: 'bg-green text-white' },
   { label: 'Go Live', value: '$7/month. Your link. Professional.', tag: '$7', tagClass: 'bg-ink3 text-white' },
@@ -123,12 +125,21 @@ export function LandingContent() {
       {/* CTA */}
       <a
         href="#"
-        className="inline-block px-8 py-3.5 bg-coral text-white font-anybody text-[11px] font-bold uppercase tracking-[0.08em] no-underline hover:bg-[#C24A36] transition-colors mb-9"
+        className="inline-block px-8 py-3.5 bg-coral text-white font-anybody text-[11px] font-bold uppercase tracking-[0.08em] no-underline hover:bg-[#C24A36] transition-colors mb-4"
         style={{ fontVariationSettings: '"wdth" 120' }}
         onClick={(e) => e.preventDefault()}
       >
         Start Building &rarr;
       </a>
+      <div className="mb-9">
+        <button
+          onClick={() => useUIStore.getState().setPreviewMode('gallery')}
+          className="font-recursive text-[12px] text-ink3 hover:text-coral transition-colors"
+          style={{ fontVariationSettings: '"MONO" 1, "CASL" 0' }}
+        >
+          or browse templates &rarr;
+        </button>
+      </div>
 
       {/* Footer */}
       <div className="pt-5 border-t border-border">
