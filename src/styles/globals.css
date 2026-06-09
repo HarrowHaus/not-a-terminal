@@ -2,14 +2,38 @@
 
 @theme {
   --color-bg: #F3EEE4;
+  --color-bg2: #EAE4D8;
   --color-surface: #FAF7F0;
   --color-ink: #1E1C18;
+  --color-ink2: #55524A;
+  --color-ink3: #8A867C;
+  --color-ink4: #B5B1A6;
+  --color-ink5: #D2CEBF;
   --color-coral: #DE5A44;
   --color-green: #3B9E78;
+  --color-border: #D2CEC2;
 
   --font-family-recursive: "Recursive", monospace;
   --font-family-fraunces: "Fraunces", serif;
   --font-family-anybody: "Anybody", sans-serif;
+
+  --animate-glow: glow 2.4s ease-in-out infinite;
+}
+
+@keyframes glow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(59, 158, 120, 0.4);
+  }
+  50% {
+    opacity: 0.5;
+    box-shadow: 0 0 6px 2px rgba(59, 158, 120, 0.15);
+  }
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
 }
 
 html {
@@ -19,7 +43,15 @@ html {
 
 body {
   margin: 0;
-  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink5);
+  border-radius: 3px;
 }
