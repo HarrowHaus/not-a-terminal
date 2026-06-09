@@ -1,14 +1,19 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
 import { Message } from './Message'
 import { Composer } from './Composer'
 import { useChatStore } from '../../stores/chat'
 import { useUIStore } from '../../stores/ui'
+import { useTemplateStore } from '../../stores/template'
+import { search, indexTemplates, setProgressCallback } from '../../engine/search/retrieval'
+import { templates } from '../../data/templates'
 
 export function ChatPane() {
   const messages = useChatStore((s) => s.messages)
   const addMessage = useChatStore((s) => s.addMessage)
   const updateLastNatMessage = useChatStore((s) => s.updateLastNatMessage)
   const startBuild = useUIStore((s) => s.startBuild)
+  const setPreviewMode = useUIStore((s) => s.setPreviewMode)
+  const selectTemplate = useTemplateStore((s) => s.selectTemplate)
   const msgsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -17,15 +22,42 @@ export function ChatPane() {
     }
   }, [messages])
 
-  function handleSubmit(text: string) {
-    addMessage('you', text)
-    addMessage('nat', 'Building...')
-    startBuild()
+  useEffect(() => {
+    setProgressCallback((msg) => {
+      updateLastNatMessage(msg)
+    })
+    indexTemplates(templates).catch(() => {})
+  }, [updateLastNatMessage])
 
-    setTimeout(() => {
-      updateLastNatMessage('Done. Describe changes to refine it.')
-    }, 2800)
-  }
+  const handleSubmit = useCallback(
+    async (text: string) => {
+      addMessage('you', text)
+      addMessage('nat', 'Searching templates...')
+      startBuild()
+
+      try {
+        await indexTemplates(templates)
+        const results = await search(text, 3)
+
+        if (results.length > 0 && results[0].similarity > 0.3) {
+          const best = results[0]
+          selectTemplate(best.id)
+          setPreviewMode('preview')
+          updateLastNatMessage(
+            `Found "${best.name}" (${(best.similarity * 100).toFixed(0)}% match). Customize it with the form or switch to code.`,
+          )
+        } else {
+          setPreviewMode('gallery')
+          updateLastNatMessage('No close match. Browse the gallery to pick a template.')
+        }
+      } catch (err) {
+        console.error('Search error:', err)
+        setPreviewMode('gallery')
+        updateLastNatMessage('Search is warming up. Browse templates while it loads.')
+      }
+    },
+    [addMessage, updateLastNatMessage, startBuild, setPreviewMode, selectTemplate],
+  )
 
   return (
     <>
