@@ -7,7 +7,14 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "pipeline:crawl": "tsx scripts/crawl-templates.ts",
+    "pipeline:enrich": "tsx scripts/enrich-with-claude.ts",
+    "pipeline:embed": "tsx scripts/compute-embeddings.ts",
+    "pipeline:shard": "tsx scripts/shard-by-category.ts",
+    "pipeline:build": "tsx scripts/build-index.ts",
+    "pipeline:actions": "tsx scripts/build-actions.ts",
+    "pipeline:sections": "tsx scripts/build-sections.ts"
   },
   "dependencies": {
     "@babel/generator": "^7.0.0",
@@ -29,6 +36,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.102.0",
     "@tailwindcss/vite": "^4.0.0",
     "@types/babel__generator": "^7.0.0",
     "@types/babel__standalone": "^7.0.0",
@@ -37,6 +45,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.0.0",
     "tailwindcss": "^4.0.0",
+    "tsx": "^4.22.4",
     "typescript": "~5.7.0",
     "vite": "^6.0.0",
     "vitest": "^4.1.8"
