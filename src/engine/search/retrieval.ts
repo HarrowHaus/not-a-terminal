@@ -56,7 +56,7 @@ function getWorker(): Worker {
   return worker
 }
 
-async function embed(text: string): Promise<number[]> {
+export async function embed(text: string): Promise<number[]> {
   getWorker()
   await workerReady
 
@@ -67,7 +67,7 @@ async function embed(text: string): Promise<number[]> {
   })
 }
 
-async function embedBatch(texts: string[]): Promise<number[][]> {
+export async function embedBatch(texts: string[]): Promise<number[][]> {
   getWorker()
   await workerReady
 
