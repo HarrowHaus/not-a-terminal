@@ -1,28 +1,9 @@
 import { Header } from './Header'
 import { PaneDivider } from './PaneDivider'
-import { IframeRenderer } from '../preview/IframeRenderer'
+import { LandingContent } from '../preview/LandingContent'
 import { useUIStore } from '../../stores/ui'
 
-const DEMO_FILES: Record<string, string> = {
-  '/App.tsx': `
-export default function App() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 flex items-center justify-center p-8">
-      <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Preview Engine</h1>
-        <p className="text-gray-500 text-sm mb-6">esbuild-wasm · Tailwind CDN · esm.sh</p>
-        <div className="flex flex-wrap gap-2 mb-6">
-          <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium">React 19</span>
-          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">JSX</span>
-          <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">Tailwind</span>
-        </div>
-        <p className="text-xs text-gray-400">Compiled in-browser. No server required.</p>
-      </div>
-    </div>
-  )
-}
-`,
-}
+const MONO_TERMINAL = { fontVariationSettings: '"MONO" 1, "CASL" 0' } as const
 
 export function Shell() {
   const activePane = useUIStore((s) => s.activePane)
@@ -31,38 +12,91 @@ export function Shell() {
     <div className="flex flex-col h-screen overflow-hidden bg-bg">
       <Header />
       <div className="flex flex-1 overflow-hidden">
+        {/* Chat pane */}
         <div
           className={`shrink-0 flex flex-col bg-bg w-full md:w-80 lg:w-[370px] ${
             activePane === 'chat' ? 'flex' : 'hidden md:flex'
           }`}
         >
+          {/* Chat header */}
           <div
             className="px-3.5 py-2.5 border-b border-border flex justify-between font-recursive text-[9px] font-medium text-ink4 uppercase tracking-[0.1em]"
-            style={{ fontVariationSettings: '"MONO" 1, "CASL" 0' }}
+            style={MONO_TERMINAL}
           >
             <span>conversation</span>
             <span>nat &middot; local</span>
           </div>
-          <div className="flex-1" />
+
+          {/* Pre-seeded messages */}
+          <div className="flex-1 overflow-y-auto p-3.5 flex flex-col gap-4">
+            {/* User message */}
+            <div className="max-w-[90%] self-end">
+              <div
+                className="font-recursive text-[8px] font-semibold uppercase tracking-[0.1em] text-ink4 text-right mb-1"
+                style={{ ...MONO_TERMINAL, fontWeight: 650 }}
+              >
+                you
+              </div>
+              <div
+                className="font-recursive text-[13px] leading-[1.7] p-2.5 px-3 border border-ink bg-ink text-bg"
+                style={{ ...MONO_TERMINAL, fontWeight: 400 }}
+              >
+                Build a landing page for a free app builder called Not A Terminal
+              </div>
+            </div>
+
+            {/* Nat message */}
+            <div className="max-w-[90%] self-start">
+              <div
+                className="font-recursive text-[8px] font-semibold uppercase tracking-[0.1em] text-green mb-1"
+                style={{ ...MONO_TERMINAL, fontWeight: 650 }}
+              >
+                nat
+              </div>
+              <div
+                className="font-recursive text-[13px] leading-[1.7] p-2.5 px-3 border border-border bg-surface"
+                style={{ ...MONO_TERMINAL, fontWeight: 400 }}
+              >
+                Here it is. Type anything below to start building your own.
+              </div>
+            </div>
+          </div>
+
+          {/* Composer */}
           <div className="p-3 border-t border-border bg-bg2">
             <textarea
-              className="w-full p-2.5 border border-border bg-surface text-ink font-recursive text-[13px] leading-relaxed resize-none outline-none min-h-[52px] focus:border-ink transition-colors"
-              style={{ fontVariationSettings: '"MONO" 1, "CASL" 0', fontWeight: 400 }}
+              className="w-full p-2.5 border border-border bg-surface text-ink font-recursive text-[13px] leading-[1.6] resize-none outline-none min-h-[52px] focus:border-ink transition-colors placeholder:text-ink4"
+              style={{ ...MONO_TERMINAL, fontWeight: 400 }}
               placeholder="describe what you want to build..."
               rows={3}
               readOnly
             />
+            <div className="flex justify-between items-center mt-1.5">
+              <span
+                className="font-recursive text-[9px] text-ink4"
+                style={MONO_TERMINAL}
+              >
+                enter to build
+              </span>
+              <button
+                className="px-4 py-1.5 border border-ink bg-ink text-surface font-recursive text-[10px] font-semibold uppercase tracking-[0.05em] cursor-pointer hover:bg-coral hover:border-coral transition-all"
+                style={{ ...MONO_TERMINAL, fontWeight: 650 }}
+              >
+                build
+              </button>
+            </div>
           </div>
         </div>
 
         <PaneDivider />
 
+        {/* Preview pane */}
         <div
-          className={`flex-1 overflow-hidden bg-surface ${
+          className={`flex-1 overflow-y-auto bg-surface ${
             activePane === 'preview' ? '' : 'hidden md:block'
           }`}
         >
-          <IframeRenderer files={DEMO_FILES} />
+          <LandingContent />
         </div>
       </div>
     </div>
