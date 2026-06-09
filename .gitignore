@@ -141,3 +141,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Spec files (handoff/development)
+CLAUDE.md
+BUILD_DOSSIER.md
+AGENTS.md
+PROMPTS.md
+DESIGN_REFERENCE.html
