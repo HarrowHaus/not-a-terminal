@@ -6,36 +6,39 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "zustand": "^5.0.0",
-    "framer-motion": "^11.0.0",
-    "lucide-react": "^0.460.0",
-    "dexie": "^4.0.0",
-    "codemirror": "^6.0.0",
-    "@codemirror/lang-javascript": "^6.0.0",
-    "esbuild-wasm": "^0.25.0",
+    "@babel/generator": "^7.0.0",
+    "@babel/parser": "^7.29.7",
     "@babel/standalone": "^7.0.0",
     "@babel/traverse": "^7.0.0",
-    "@babel/generator": "^7.0.0",
     "@babel/types": "^7.0.0",
-    "@huggingface/transformers": "^3.0.0",
+    "@codemirror/lang-javascript": "^6.0.0",
     "@electric-sql/pglite": "^0.2.0",
-    "jszip": "^3.10.0"
+    "@huggingface/transformers": "^3.0.0",
+    "codemirror": "^6.0.0",
+    "dexie": "^4.0.0",
+    "esbuild-wasm": "^0.25.0",
+    "framer-motion": "^11.0.0",
+    "jszip": "^3.10.0",
+    "lucide-react": "^0.460.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
-    "vite": "^6.0.0",
-    "@vitejs/plugin-react": "^4.0.0",
-    "typescript": "~5.7.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "tailwindcss": "^4.0.0",
     "@tailwindcss/vite": "^4.0.0",
+    "@types/babel__generator": "^7.0.0",
     "@types/babel__standalone": "^7.0.0",
     "@types/babel__traverse": "^7.0.0",
-    "@types/babel__generator": "^7.0.0"
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "~5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^4.1.8"
   }
 }
