@@ -12,6 +12,7 @@ import { splitClauses } from '../../engine/search/clause-splitter'
 import { templates } from '../../data/templates'
 import { actions } from '../../data/actions'
 import { sections } from '../../data/sections'
+import type { TransformIntent } from '../../engine/ast/types'
 
 async function initAllIndexes() {
   await indexTemplates(templates)
@@ -26,6 +27,7 @@ export function ChatPane() {
   const startBuild = useUIStore((s) => s.startBuild)
   const setPreviewMode = useUIStore((s) => s.setPreviewMode)
   const selectTemplate = useTemplateStore((s) => s.selectTemplate)
+  const updateField = useTemplateStore((s) => s.updateField)
   const selectedId = useTemplateStore((s) => s.selectedId)
   const showEditor = useEditorStore((s) => s.showEditor)
   const editorFiles = useEditorStore((s) => s.files)
@@ -58,6 +60,16 @@ export function ChatPane() {
         if (selectedId) {
           const clauses = splitClauses(text)
           const responses: string[] = []
+          const activeTemplate = templates.find((t) => t.id === selectedId)
+
+          // Apply a matched action to the live preview.
+          // Color swaps route through the template's color field (form-mode preview).
+          const applyAction = (intent: TransformIntent) => {
+            if (intent.type === 'swap-color' && activeTemplate) {
+              const colorField = activeTemplate.fields.find((f) => f.type === 'color')
+              if (colorField) updateField(colorField.key, intent.to)
+            }
+          }
 
           for (const clause of clauses) {
             // Search all indexes for this clause
@@ -80,9 +92,7 @@ export function ChatPane() {
             if (bestAction && bestSection) {
               if (actionSim >= sectionSim && actionSim > 0.4) {
                 responses.push(`"${clause}" → ${bestAction.description} (${(bestAction.similarity * 100).toFixed(0)}%)`)
-
-                // If in editor mode, we could apply the transform — log for now
-                console.log('[action]', clause, bestAction.intent)
+                applyAction(bestAction.intent)
               } else if (sectionSim > 0.4) {
                 responses.push(`"${clause}" → add ${bestSection.name} (${(bestSection.similarity * 100).toFixed(0)}%)`)
 
@@ -102,7 +112,7 @@ export function ChatPane() {
               }
             } else if (bestAction && actionSim > 0.4) {
               responses.push(`"${clause}" → ${bestAction.description} (${(bestAction.similarity * 100).toFixed(0)}%)`)
-              console.log('[action]', clause, bestAction.intent)
+              applyAction(bestAction.intent)
             } else if (bestSection && sectionSim > 0.4) {
               responses.push(`"${clause}" → add ${bestSection.name} (${(bestSection.similarity * 100).toFixed(0)}%)`)
               console.log('[section]', clause, bestSection.name)
@@ -136,7 +146,7 @@ export function ChatPane() {
         updateLastNatMessage('Search is warming up. Browse templates while it loads.')
       }
     },
-    [addMessage, updateLastNatMessage, startBuild, setPreviewMode, selectTemplate, selectedId, showEditor, editorFiles, setFile],
+    [addMessage, updateLastNatMessage, startBuild, setPreviewMode, selectTemplate, updateField, selectedId, showEditor, editorFiles, setFile],
   )
 
   return (

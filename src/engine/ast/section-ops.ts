@@ -65,7 +65,8 @@ export function addSection(
   jsxCode: string,
 ): boolean {
   const fragmentAst = parseJSX(`const __f = (<>\n${jsxCode}\n</>)`)
-  let newNodes: Node[] = []
+  type JSXChild = t.JSXElement | t.JSXExpressionContainer | t.JSXFragment | t.JSXSpreadChild | t.JSXText
+  let newNodes: JSXChild[] = []
   traverse(fragmentAst, {
     JSXFragment(path) {
       newNodes = path.node.children.filter(

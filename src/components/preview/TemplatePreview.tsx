@@ -1,9 +1,11 @@
-import { useMemo, useRef, useEffect, useCallback } from 'react'
+import { useMemo, useRef, useEffect, useCallback, useState } from 'react'
+import { Download } from 'lucide-react'
 import { useTemplateStore } from '../../stores/template'
 import { useUIStore } from '../../stores/ui'
 import { useEditorStore } from '../../stores/editor'
 import { templates } from '../../data/templates'
 import { applyCustomizations } from '../../engine/ast/customizer'
+import { exportProject } from '../../engine/export'
 import { CustomizeForm } from '../gallery/CustomizeForm'
 import { IframeRenderer } from './IframeRenderer'
 import { EditorPane } from '../editor/EditorPane'
@@ -24,7 +26,8 @@ export function TemplatePreview() {
   const toggleEditor = useEditorStore((s) => s.toggleEditor)
 
   const template = templates.find((t) => t.id === selectedId)
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const [exporting, setExporting] = useState(false)
 
   const formFiles = useMemo(() => {
     if (!template) return { '/App.tsx': 'export default function App() { return <div /> }' }
@@ -58,6 +61,18 @@ export function TemplatePreview() {
   const previewFiles = showEditor ? editorFiles : formFiles
   const editorValue = editorFiles[activeFile] ?? ''
 
+  async function handleExport() {
+    setExporting(true)
+    try {
+      await exportProject({
+        files: previewFiles,
+        projectName: template?.name ?? 'my-app',
+      })
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Toolbar */}
@@ -76,7 +91,18 @@ export function TemplatePreview() {
         >
           {template?.name ?? 'Template'}
         </span>
-        <div className="ml-auto flex">
+        <div className="ml-auto flex items-center gap-3">
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            title="Download as a runnable Vite project (.zip)"
+            className="flex items-center gap-1 font-recursive text-[10px] text-ink3 hover:text-ink disabled:opacity-50 transition-colors"
+            style={{ fontVariationSettings: '"MONO" 1, "CASL" 0' }}
+          >
+            <Download size={12} />
+            {exporting ? 'zipping…' : 'export'}
+          </button>
+          <div className="flex">
           <button
             onClick={handleToggleEditor}
             className={`font-recursive text-[10px] px-2.5 py-1 rounded-l border border-border transition-colors ${
@@ -99,6 +125,7 @@ export function TemplatePreview() {
           >
             CODE
           </button>
+          </div>
         </div>
       </div>
 

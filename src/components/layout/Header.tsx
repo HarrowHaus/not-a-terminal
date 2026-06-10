@@ -1,6 +1,9 @@
 import { PaneToggle } from './PaneToggle'
+import { useUIStore } from '../../stores/ui'
 
 export function Header() {
+  const setShowDocs = useUIStore((s) => s.setShowDocs)
+
   return (
     <header className="flex items-center justify-between px-4 h-11 bg-bg2 border-b border-border">
       <div className="flex items-baseline gap-0.5">
@@ -21,12 +24,21 @@ export function Header() {
 
       <PaneToggle />
 
-      <span
-        className="font-recursive text-[10px] text-ink4 hidden md:inline"
-        style={{ fontVariationSettings: '"MONO" 1, "CASL" 0' }}
-      >
-        <b className="text-green font-semibold">free</b> &middot; no account
-      </span>
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => setShowDocs(true)}
+          className="font-recursive text-[10px] text-ink3 hover:text-coral transition-colors"
+          style={{ fontVariationSettings: '"MONO" 1, "CASL" 0' }}
+        >
+          docs
+        </button>
+        <span
+          className="font-recursive text-[10px] text-ink4 hidden md:inline"
+          style={{ fontVariationSettings: '"MONO" 1, "CASL" 0' }}
+        >
+          <b className="text-green font-semibold">free</b> &middot; no account
+        </span>
+      </div>
     </header>
   )
 }
