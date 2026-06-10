@@ -13,4 +13,6 @@ export interface Template {
   tags: string[]
   fields: TemplateField[]
   code: string
+  /** 8-12 user-voice search phrasings (pipeline templates; embedded at build time). */
+  phrasings?: string[]
 }

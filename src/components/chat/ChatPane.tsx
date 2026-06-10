@@ -2,17 +2,19 @@ import { useRef, useEffect, useCallback } from 'react'
 import { Message } from './Message'
 import { Composer } from './Composer'
 import { useChatStore } from '../../stores/chat'
+import type { ChatOption } from '../../stores/chat'
 import { useUIStore } from '../../stores/ui'
 import { useTemplateStore } from '../../stores/template'
 import { useEditorStore } from '../../stores/editor'
-import { search, indexTemplates, setProgressCallback } from '../../engine/search/retrieval'
-import { indexActions, searchAction } from '../../engine/search/action-search'
-import { indexSections, searchSection } from '../../engine/search/section-search'
-import { splitClauses } from '../../engine/search/clause-splitter'
+import { route } from '../../engine/router'
+import type { RouteResult } from '../../engine/router'
+import type { SearchResult } from '../../engine/search/types'
+import { indexTemplates, setProgressCallback } from '../../engine/search/retrieval'
+import { indexActions } from '../../engine/search/action-search'
+import { indexSections } from '../../engine/search/section-search'
 import { templates } from '../../data/templates'
 import { actions } from '../../data/actions'
 import { sections } from '../../data/sections'
-import type { TransformIntent } from '../../engine/ast/types'
 
 async function initAllIndexes() {
   await indexTemplates(templates)
@@ -32,7 +34,12 @@ export function ChatPane() {
   const showEditor = useEditorStore((s) => s.showEditor)
   const editorFiles = useEditorStore((s) => s.files)
   const setFile = useEditorStore((s) => s.setFile)
+  const setFiles = useEditorStore((s) => s.setFiles)
+  const toggleEditor = useEditorStore((s) => s.toggleEditor)
   const msgsRef = useRef<HTMLDivElement>(null)
+
+  // Full SearchResults behind the last "did you mean" options (id → result)
+  const suggestionCache = useRef(new Map<string, SearchResult>())
 
   useEffect(() => {
     if (msgsRef.current) {
@@ -47,106 +54,119 @@ export function ChatPane() {
     initAllIndexes().catch(() => {})
   }, [updateLastNatMessage])
 
+  /** Render a template: starters go through the form flow, shard templates through the editor. */
+  const openTemplate = useCallback(
+    (id: string, code: string) => {
+      const starter = templates.find((t) => t.id === id)
+      if (starter) {
+        selectTemplate(id)
+        setPreviewMode('preview')
+        return
+      }
+      // Shard-loaded template — render its code via the editor surface
+      setFiles({ '/App.tsx': code })
+      if (!useEditorStore.getState().showEditor) toggleEditor()
+      setPreviewMode('preview')
+    },
+    [selectTemplate, setPreviewMode, setFiles, toggleEditor],
+  )
+
+  const applyRouteResult = useCallback(
+    (result: RouteResult) => {
+      switch (result.kind) {
+        case 'composition': {
+          setFiles({ '/App.tsx': result.code })
+          if (!useEditorStore.getState().showEditor) toggleEditor()
+          setPreviewMode('preview')
+          const names = result.sections.map((s) => `${s.name} (${(s.similarity * 100).toFixed(0)}%)`).join(', ')
+          updateLastNatMessage(`Composed ${result.sections.length} sections: ${names}. Switch to CODE to refine.`)
+          return
+        }
+
+        case 'modifications': {
+          const lines: string[] = []
+          for (const c of result.clauses) {
+            if (c.kind === 'action') {
+              lines.push(`"${c.clause}" → ${c.description} (${(c.similarity * 100).toFixed(0)}%)`)
+              if (c.intent.type === 'swap-color') {
+                const active = templates.find((t) => t.id === useTemplateStore.getState().selectedId)
+                const colorField = active?.fields.find((f) => f.type === 'color')
+                if (colorField) updateField(colorField.key, c.intent.to)
+              }
+            } else if (c.kind === 'section') {
+              lines.push(`"${c.clause}" → add ${c.name} (${(c.similarity * 100).toFixed(0)}%)`)
+              if (showEditor) {
+                const activeCode = editorFiles['/App.tsx'] ?? ''
+                const insertIdx = activeCode.lastIndexOf('</div>')
+                if (insertIdx > -1) {
+                  setFile('/App.tsx', activeCode.slice(0, insertIdx) + '\n' + c.code + '\n      ' + activeCode.slice(insertIdx))
+                }
+              }
+            } else {
+              lines.push(`"${c.clause}" → no close match`)
+            }
+          }
+          setPreviewMode('preview')
+          updateLastNatMessage(lines.join('\n'))
+          return
+        }
+
+        case 'template': {
+          openTemplate(result.match.id, result.match.code)
+          updateLastNatMessage(
+            `Found "${result.match.name}" (${(result.match.similarity * 100).toFixed(0)}% match). Customize it with the form or switch to code.`,
+          )
+          return
+        }
+
+        case 'suggestions': {
+          suggestionCache.current = new Map(result.options.map((o) => [o.id, o]))
+          setPreviewMode('gallery')
+          updateLastNatMessage(
+            'Close, but not sure which one. Did you mean:',
+            result.options.map((o) => ({ id: o.id, name: o.name, similarity: o.similarity })),
+          )
+          return
+        }
+
+        case 'gallery': {
+          setPreviewMode('gallery')
+          updateLastNatMessage('No close match. Browse the gallery to pick a starting point.')
+          return
+        }
+      }
+    },
+    [setFiles, toggleEditor, setPreviewMode, updateLastNatMessage, updateField, showEditor, editorFiles, setFile, openTemplate],
+  )
+
   const handleSubmit = useCallback(
     async (text: string) => {
       addMessage('you', text)
       addMessage('nat', 'Searching...')
-      startBuild()
+      startBuild()   // BuildingState renders MorphText while the engine works
 
       try {
         await initAllIndexes()
-
-        // If a template is selected, search actions + sections (modification mode)
-        if (selectedId) {
-          const clauses = splitClauses(text)
-          const responses: string[] = []
-          const activeTemplate = templates.find((t) => t.id === selectedId)
-
-          // Apply a matched action to the live preview.
-          // Color swaps route through the template's color field (form-mode preview).
-          const applyAction = (intent: TransformIntent) => {
-            if (intent.type === 'swap-color' && activeTemplate) {
-              const colorField = activeTemplate.fields.find((f) => f.type === 'color')
-              if (colorField) updateField(colorField.key, intent.to)
-            }
-          }
-
-          for (const clause of clauses) {
-            // Search all indexes for this clause
-            const [actionResults, sectionResults] = await Promise.all([
-              searchAction(clause, 1),
-              searchSection(clause, 1),
-            ])
-
-            const bestAction = actionResults[0]
-            const bestSection = sectionResults[0]
-
-            // Intent boost: "add/insert" prefers sections, "remove/change/make" prefers actions
-            const addIntent = /\b(add|insert|include|put\s+in|need\s+a|want\s+a|with\s+a)\b/i.test(clause)
-            const modifyIntent = /\b(remove|delete|change|make|switch|turn|enable|disable|set)\b/i.test(clause)
-
-            const actionSim = bestAction ? bestAction.similarity + (modifyIntent ? 0.1 : 0) : 0
-            const sectionSim = bestSection ? bestSection.similarity + (addIntent ? 0.1 : 0) : 0
-
-            // Pick whichever index has the higher boosted similarity
-            if (bestAction && bestSection) {
-              if (actionSim >= sectionSim && actionSim > 0.4) {
-                responses.push(`"${clause}" → ${bestAction.description} (${(bestAction.similarity * 100).toFixed(0)}%)`)
-                applyAction(bestAction.intent)
-              } else if (sectionSim > 0.4) {
-                responses.push(`"${clause}" → add ${bestSection.name} (${(bestSection.similarity * 100).toFixed(0)}%)`)
-
-                // If in editor mode, append section code
-                if (showEditor) {
-                  const activeCode = editorFiles['/App.tsx'] ?? ''
-                  const insertIdx = activeCode.lastIndexOf('</div>')
-                  if (insertIdx > -1) {
-                    const newCode = activeCode.slice(0, insertIdx) + '\n' + bestSection.code + '\n      ' + activeCode.slice(insertIdx)
-                    setFile('/App.tsx', newCode)
-                  }
-                }
-
-                console.log('[section]', clause, bestSection.name)
-              } else {
-                responses.push(`"${clause}" → no close match`)
-              }
-            } else if (bestAction && actionSim > 0.4) {
-              responses.push(`"${clause}" → ${bestAction.description} (${(bestAction.similarity * 100).toFixed(0)}%)`)
-              applyAction(bestAction.intent)
-            } else if (bestSection && sectionSim > 0.4) {
-              responses.push(`"${clause}" → add ${bestSection.name} (${(bestSection.similarity * 100).toFixed(0)}%)`)
-              console.log('[section]', clause, bestSection.name)
-            } else {
-              responses.push(`"${clause}" → no close match`)
-            }
-          }
-
-          setPreviewMode('preview')
-          updateLastNatMessage(responses.join('\n'))
-          return
-        }
-
-        // No template selected — search template index
-        const results = await search(text, 3)
-
-        if (results.length > 0 && results[0].similarity > 0.3) {
-          const best = results[0]
-          selectTemplate(best.id)
-          setPreviewMode('preview')
-          updateLastNatMessage(
-            `Found "${best.name}" (${(best.similarity * 100).toFixed(0)}% match). Customize it with the form or switch to code.`,
-          )
-        } else {
-          setPreviewMode('gallery')
-          updateLastNatMessage('No close match. Browse the gallery to pick a template.')
-        }
+        const result = await route(text, { templateSelected: !!selectedId })
+        applyRouteResult(result)
       } catch (err) {
-        console.error('Search error:', err)
+        console.error('Router error:', err)
         setPreviewMode('gallery')
         updateLastNatMessage('Search is warming up. Browse templates while it loads.')
       }
     },
-    [addMessage, updateLastNatMessage, startBuild, setPreviewMode, selectTemplate, updateField, selectedId, showEditor, editorFiles, setFile],
+    [addMessage, updateLastNatMessage, startBuild, setPreviewMode, selectedId, applyRouteResult],
+  )
+
+  const handleSelectOption = useCallback(
+    (option: ChatOption) => {
+      const full = suggestionCache.current.get(option.id)
+      addMessage('you', option.name)
+      addMessage('nat', `Loading "${option.name}"...`)
+      openTemplate(option.id, full?.code ?? '')
+      updateLastNatMessage(`Here's "${option.name}". Customize it with the form or switch to code.`)
+    },
+    [addMessage, updateLastNatMessage, openTemplate],
   )
 
   return (
@@ -164,7 +184,13 @@ export function ChatPane() {
         className="flex-1 overflow-y-auto p-3.5 flex flex-col gap-4"
       >
         {messages.map((msg) => (
-          <Message key={msg.id} sender={msg.sender} text={msg.text} />
+          <Message
+            key={msg.id}
+            sender={msg.sender}
+            text={msg.text}
+            options={msg.options}
+            onSelectOption={handleSelectOption}
+          />
         ))}
       </div>
 

@@ -26,6 +26,27 @@ export async function getDB(): Promise<PGlite> {
       )
     `)
 
+    // Columns added after v1 — safe on existing IndexedDB databases
+    await instance.exec(`
+      ALTER TABLE template_embeddings ADD COLUMN IF NOT EXISTS code TEXT NOT NULL DEFAULT '';
+      ALTER TABLE template_embeddings ADD COLUMN IF NOT EXISTS phrasings TEXT NOT NULL DEFAULT '[]';
+    `)
+
+    // HNSW index so searchByVector's <=> scans stay fast at thousands of rows
+    await instance.exec(`
+      CREATE INDEX IF NOT EXISTS template_embeddings_hnsw
+      ON template_embeddings USING hnsw (embedding vector_cosine_ops)
+    `)
+
+    // Tracks which category shards have been bulk-loaded (persists in IndexedDB)
+    await instance.exec(`
+      CREATE TABLE IF NOT EXISTS loaded_shards (
+        category TEXT PRIMARY KEY,
+        count INT NOT NULL,
+        loaded_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `)
+
     await instance.exec(`
       CREATE TABLE IF NOT EXISTS action_embeddings (
         id TEXT PRIMARY KEY,
@@ -60,6 +81,7 @@ export interface TemplateRow {
   description: string
   category: string
   tags: string
+  code: string
   similarity: number
 }
 
@@ -90,7 +112,7 @@ export async function searchByVector(queryVec: number[], limit: number = 5): Pro
   const pg = await getDB()
   const vecStr = `[${queryVec.join(',')}]`
   const result = await pg.query<TemplateRow>(
-    `SELECT id, name, description, category, tags,
+    `SELECT id, name, description, category, tags, code,
             1 - (embedding <=> $1::vector) AS similarity
      FROM template_embeddings
      ORDER BY embedding <=> $1::vector
@@ -104,6 +126,59 @@ export async function getEmbeddingCount(): Promise<number> {
   const pg = await getDB()
   const result = await pg.query<{ count: string }>('SELECT COUNT(*)::text as count FROM template_embeddings')
   return parseInt(result.rows[0].count, 10)
+}
+
+// --- Shard bulk loading (pre-computed vectors — never re-embed at runtime) ---
+
+export interface ShardTemplateRow {
+  id: string
+  name: string
+  description: string
+  category: string
+  tags: string[]
+  code: string
+  phrasings: string[]
+  embedding: Float32Array
+}
+
+/** Bulk-insert shard templates with their pre-computed vectors, one transaction. */
+export async function bulkInsertTemplates(rows: ShardTemplateRow[]): Promise<void> {
+  const pg = await getDB()
+  await pg.transaction(async (tx) => {
+    for (const r of rows) {
+      const vecStr = `[${Array.from(r.embedding).join(',')}]`
+      await tx.query(
+        `INSERT INTO template_embeddings (id, name, description, category, tags, code, phrasings, embedding)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::vector)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           description = EXCLUDED.description,
+           category = EXCLUDED.category,
+           tags = EXCLUDED.tags,
+           code = EXCLUDED.code,
+           phrasings = EXCLUDED.phrasings,
+           embedding = EXCLUDED.embedding`,
+        [r.id, r.name, r.description, r.category, JSON.stringify(r.tags), r.code, JSON.stringify(r.phrasings), vecStr],
+      )
+    }
+  })
+}
+
+export async function isShardLoaded(category: string): Promise<boolean> {
+  const pg = await getDB()
+  const result = await pg.query<{ count: number }>(
+    'SELECT count FROM loaded_shards WHERE category = $1', [category],
+  )
+  return result.rows.length > 0
+}
+
+export async function markShardLoaded(category: string, count: number): Promise<void> {
+  const pg = await getDB()
+  await pg.query(
+    `INSERT INTO loaded_shards (category, count) VALUES ($1, $2)
+     ON CONFLICT (category) DO UPDATE SET count = EXCLUDED.count, loaded_at = now()`,
+    [category, count],
+  )
 }
 
 // --- Action embeddings ---

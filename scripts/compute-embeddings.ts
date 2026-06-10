@@ -150,7 +150,8 @@ async function main() {
 
   if (isTest) {
     console.log('🧪 Running in test mode with mock embeddings...')
-    const testPath = join('data', 'pipeline', 'enriched.json')
+    // Respect an explicit --input in test mode (e.g. enriched.mock.json)
+    const testPath = inputIdx >= 0 ? inputPath : join('data', 'pipeline', 'enriched.json')
     if (existsSync(testPath)) {
       templates = JSON.parse(readFileSync(testPath, 'utf-8')) as EnrichedTemplate[]
     } else {
@@ -158,7 +159,7 @@ async function main() {
       templates = [
         {
           id: 'test-1', source: 'test', name: 'Landing Page',
-          code: '<div>Landing</div>', originalFormat: 'jsx',
+          code: '<div>Landing</div>', originalFormat: 'jsx', license: 'MIT', enrichedBy: 'mock',
           description: 'A clean landing page for SaaS products.',
           phrasings: ['build a landing page', 'SaaS landing', 'startup website'],
           category: 'landing-page', tags: ['saas', 'landing'], sections: ['hero', 'features'],
@@ -166,7 +167,7 @@ async function main() {
         },
         {
           id: 'test-2', source: 'test', name: 'Dashboard',
-          code: '<div>Dashboard</div>', originalFormat: 'jsx',
+          code: '<div>Dashboard</div>', originalFormat: 'jsx', license: 'MIT', enrichedBy: 'mock',
           description: 'An admin dashboard with sidebar navigation.',
           phrasings: ['admin dashboard', 'analytics panel', 'control panel'],
           category: 'dashboard', tags: ['admin', 'dashboard'], sections: ['sidebar', 'stats'],

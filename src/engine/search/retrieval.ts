@@ -112,6 +112,7 @@ export async function search(query: string, limit: number = 5): Promise<SearchRe
     description: r.description,
     category: r.category,
     tags: JSON.parse(r.tags) as string[],
+    code: r.code ?? '',
     similarity: r.similarity,
   }))
 }

@@ -13,10 +13,15 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
-import type { EmbeddedTemplate, IndexShard } from './types.js'
-import { CATEGORIES } from './types.js'
+import type { EmbeddedTemplate, IndexShard, ShardedTemplate } from './types.js'
+import { CATEGORIES, encodeEmbedding } from './types.js'
 
 // ─── Shard logic ─────────────────────────────────────────────────────
+
+function toSharded(template: EmbeddedTemplate): ShardedTemplate {
+  // Embedding ships as base64-encoded Float32Array bytes, not raw JSON floats
+  return { ...template, embedding: encodeEmbedding(template.embedding) }
+}
 
 function shardTemplates(templates: EmbeddedTemplate[]): Map<string, IndexShard> {
   const shards = new Map<string, IndexShard>()
@@ -37,7 +42,7 @@ function shardTemplates(templates: EmbeddedTemplate[]): Map<string, IndexShard> 
       shards.set(category, shard)
     }
 
-    shard.templates.push(template)
+    shard.templates.push(toSharded(template))
     shard.count++
   }
 
@@ -73,7 +78,8 @@ async function main() {
 
   if (isTest) {
     console.log('🧪 Running in test mode...')
-    const testPath = join('data', 'pipeline', 'embedded.json')
+    // Respect an explicit --input in test mode (e.g. embedded.mock.json)
+    const testPath = inputIdx >= 0 ? inputPath : join('data', 'pipeline', 'embedded.json')
     if (existsSync(testPath)) {
       templates = JSON.parse(readFileSync(testPath, 'utf-8')) as EmbeddedTemplate[]
     } else {
@@ -82,28 +88,28 @@ async function main() {
       templates = [
         {
           id: 'test-1', source: 'test', name: 'Landing A',
-          code: '<div>A</div>', originalFormat: 'jsx',
+          code: '<div>A</div>', originalFormat: 'jsx', license: 'MIT', enrichedBy: 'mock',
           description: 'Landing page A', phrasings: ['landing a'],
           category: 'landing-page', tags: ['landing'], sections: ['hero'],
           fields: [], embedding: mockVec,
         },
         {
           id: 'test-2', source: 'test', name: 'Landing B',
-          code: '<div>B</div>', originalFormat: 'jsx',
+          code: '<div>B</div>', originalFormat: 'jsx', license: 'MIT', enrichedBy: 'mock',
           description: 'Landing page B', phrasings: ['landing b'],
           category: 'landing-page', tags: ['landing'], sections: ['hero', 'features'],
           fields: [], embedding: mockVec.map(v => v + 0.01),
         },
         {
           id: 'test-3', source: 'test', name: 'Dashboard A',
-          code: '<div>C</div>', originalFormat: 'jsx',
+          code: '<div>C</div>', originalFormat: 'jsx', license: 'MIT', enrichedBy: 'mock',
           description: 'Admin dashboard', phrasings: ['dashboard'],
           category: 'dashboard', tags: ['admin'], sections: ['sidebar', 'stats'],
           fields: [], embedding: mockVec.map(v => v + 0.02),
         },
         {
           id: 'test-4', source: 'test', name: 'Portfolio A',
-          code: '<div>D</div>', originalFormat: 'jsx',
+          code: '<div>D</div>', originalFormat: 'jsx', license: 'MIT', enrichedBy: 'mock',
           description: 'Creative portfolio', phrasings: ['portfolio'],
           category: 'portfolio', tags: ['creative'], sections: ['hero', 'gallery'],
           fields: [], embedding: mockVec.map(v => v + 0.03),

@@ -6,6 +6,8 @@ export interface SearchResult {
   description: string
   category: string
   tags: string[]
+  /** Template source code — present for shard-loaded templates ('' for starters, which resolve from src/data). */
+  code: string
   similarity: number
 }
 
