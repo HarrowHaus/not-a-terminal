@@ -17,7 +17,8 @@
  * Usage:
  *   tsx scripts/crawl-templates.ts --check-auth      # verify GITHUB_TOKEN works
  *   tsx scripts/crawl-templates.ts --test            # inline test data
- *   tsx scripts/crawl-templates.ts --source animate-ui
+ *   tsx scripts/crawl-templates.ts --source cult-ui
+ *   tsx scripts/crawl-templates.ts --sources shadcn,dice-ui,cult-ui
  *   tsx scripts/crawl-templates.ts --all
  *   tsx scripts/crawl-templates.ts --source X --output path.json
  */
@@ -430,16 +431,9 @@ const SOURCES: Record<string, SourceHandler> = {
       repo: { owner: 'shadcn-ui', repo: 'ui' },
     }),
   },
-  'animate-ui': {
-    name: 'animate-ui',
-    crawl: () => crawlRegistry({
-      name: 'animate-ui',
-      indexUrl: 'https://animate-ui.com/r/registry.json',
-      itemUrls: [n => `https://animate-ui.com/r/${n}.json`],
-      repo: { owner: 'imskyleen', repo: 'animate-ui' },
-      skipNames: /^index$/,
-    }),
-  },
+  // Animate UI EXCLUDED — its LICENSE.md is "MIT + Commons Clause", which is
+  // NOT open source (the Commons Clause forbids selling the software). Do not
+  // re-add: it cannot be crawled, enriched, or shipped.
   'dice-ui': {
     name: 'dice-ui',
     crawl: () => crawlRegistry({
@@ -678,6 +672,8 @@ async function main() {
   const outputPath = outputIdx >= 0 ? args[outputIdx + 1] : join('data', 'pipeline', 'crawled.json')
   const sourceIdx = args.indexOf('--source')
   const sourceName = sourceIdx >= 0 ? args[sourceIdx + 1] : null
+  const sourcesIdx = args.indexOf('--sources')
+  const sourceList = sourcesIdx >= 0 ? args[sourcesIdx + 1].split(',').map(s => s.trim()).filter(Boolean) : null
   const isAll = args.includes('--all')
 
   if (args.includes('--check-auth')) {
@@ -689,30 +685,39 @@ async function main() {
 
   let results: CrawledTemplate[] = []
 
-  if (isTest) {
-    console.log('🧪 Running in test mode with inline data...')
-    results = getTestData()
-  } else if (sourceName) {
-    const handler = SOURCES[sourceName]
-    if (!handler) {
-      console.error(`Unknown source: ${sourceName}. Available: ${Object.keys(SOURCES).join(', ')}`)
+  /** Crawl an explicit list of source keys, concatenating results. */
+  async function crawlSources(keys: string[]) {
+    const unknown = keys.filter(k => !SOURCES[k])
+    if (unknown.length > 0) {
+      console.error(`Unknown source(s): ${unknown.join(', ')}. Available: ${Object.keys(SOURCES).join(', ')}`)
       process.exit(1)
     }
-    console.log(`🔍 Crawling source: ${handler.name}`)
-    results = await handler.crawl()
-  } else if (isAll) {
-    console.log('🔍 Crawling all sources...')
-    for (const [key, handler] of Object.entries(SOURCES)) {
+    for (const key of keys) {
       console.log(`\n── ${key} ──`)
-      const items = await handler.crawl()
+      const items = await SOURCES[key].crawl()
       results.push(...items)
       console.log(`  → ${items.length} templates`)
     }
+  }
+
+  if (isTest) {
+    console.log('🧪 Running in test mode with inline data...')
+    results = getTestData()
+  } else if (sourceList) {
+    console.log(`🔍 Crawling ${sourceList.length} sources: ${sourceList.join(', ')}`)
+    await crawlSources(sourceList)
+  } else if (sourceName) {
+    console.log(`🔍 Crawling source: ${sourceName}`)
+    await crawlSources([sourceName])
+  } else if (isAll) {
+    console.log('🔍 Crawling all sources...')
+    await crawlSources(Object.keys(SOURCES))
   } else {
     console.log('Usage:')
     console.log('  tsx scripts/crawl-templates.ts --check-auth')
     console.log('  tsx scripts/crawl-templates.ts --test')
-    console.log('  tsx scripts/crawl-templates.ts --source animate-ui')
+    console.log('  tsx scripts/crawl-templates.ts --source cult-ui')
+    console.log('  tsx scripts/crawl-templates.ts --sources shadcn,dice-ui,cult-ui')
     console.log('  tsx scripts/crawl-templates.ts --all')
     console.log(`\nAvailable sources:\n  ${Object.keys(SOURCES).join('\n  ')}`)
     process.exit(0)

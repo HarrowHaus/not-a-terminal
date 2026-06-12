@@ -204,8 +204,11 @@ function main(): void {
   } else if (args.includes('--from-enriched')) {
     stageTwo()
   } else {
+    const sourcesIdx = args.indexOf('--sources')
     const sourceIdx = args.indexOf('--source')
-    const crawlArgs = sourceIdx >= 0 ? `--source ${args[sourceIdx + 1]}` : '--all'
+    let crawlArgs = '--all'
+    if (sourcesIdx >= 0) crawlArgs = `--sources ${args[sourcesIdx + 1]}`
+    else if (sourceIdx >= 0) crawlArgs = `--source ${args[sourceIdx + 1]}`
     stageOne(crawlArgs)
   }
 

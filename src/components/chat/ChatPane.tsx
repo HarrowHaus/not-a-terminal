@@ -12,6 +12,7 @@ import type { SearchResult } from '../../engine/search/types'
 import { indexTemplates, setProgressCallback } from '../../engine/search/retrieval'
 import { indexActions } from '../../engine/search/action-search'
 import { indexSections } from '../../engine/search/section-search'
+import { loadAllSectionShards } from '../../engine/search/shard-loader'
 import { templates } from '../../data/templates'
 import { actions } from '../../data/actions'
 import { sections } from '../../data/sections'
@@ -20,6 +21,7 @@ async function initAllIndexes() {
   await indexTemplates(templates)
   await indexActions(actions)
   await indexSections(sections)
+  await loadAllSectionShards().catch(() => {})
 }
 
 export function ChatPane() {

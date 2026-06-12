@@ -68,6 +68,11 @@ export async function getDB(): Promise<PGlite> {
       )
     `)
 
+    await instance.exec(`
+      CREATE INDEX IF NOT EXISTS section_embeddings_hnsw
+      ON section_embeddings USING hnsw (embedding vector_cosine_ops)
+    `)
+
     db = instance
     return instance
   })()
@@ -179,6 +184,36 @@ export async function markShardLoaded(category: string, count: number): Promise<
      ON CONFLICT (category) DO UPDATE SET count = EXCLUDED.count, loaded_at = now()`,
     [category, count],
   )
+}
+
+export interface SectionShardRow {
+  id: string
+  name: string
+  description: string
+  category: string   // section-type
+  code: string
+  embedding: Float32Array
+}
+
+/** Bulk-insert section shard rows with pre-computed vectors, one transaction. */
+export async function bulkInsertSections(rows: SectionShardRow[]): Promise<void> {
+  const pg = await getDB()
+  await pg.transaction(async (tx) => {
+    for (const r of rows) {
+      const vecStr = `[${Array.from(r.embedding).join(',')}]`
+      await tx.query(
+        `INSERT INTO section_embeddings (id, name, description, category, code, embedding)
+         VALUES ($1, $2, $3, $4, $5, $6::vector)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           description = EXCLUDED.description,
+           category = EXCLUDED.category,
+           code = EXCLUDED.code,
+           embedding = EXCLUDED.embedding`,
+        [r.id, r.name, r.description, r.category, r.code, vecStr],
+      )
+    }
+  })
 }
 
 // --- Action embeddings ---
